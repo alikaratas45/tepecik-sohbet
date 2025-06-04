@@ -1,41 +1,93 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Tepecik Köyü Sohbet</title>
-  <link rel="stylesheet" href="sohbet.css" />
+<meta charset="UTF-8" />
+<title>Kalıcı Sohbet</title>
+<style>
+  body { font-family: Arial, sans-serif; }
+  #chat { width: 400px; height: 300px; border: 1px solid #ccc; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
+  #input { width: 300px; padding: 5px; }
+  #send { padding: 5px 10px; }
+  .message { margin: 5px 0; }
+  .delete-btn { margin-left: 10px; color: red; cursor: pointer; }
+</style>
 </head>
 <body>
-  <div class="container">
-    <h2>🗨️ Tepecik Köyü Sohbet Odası</h2>
-    <div id="chat-box"></div>
-    <div class="input-area">
-      <input type="text" id="username" placeholder="Adınız" />
-      <input type="text" id="message" placeholder="Mesajınızı yazın..." />
-      <button onclick="sendMessage()">Gönder</button>
-    </div>
-  </div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-    const chatBox = document.getElementById('chat-box');
+<div id="chat"></div>
 
-    function sendMessage() {
-      const user = document.getElementById('username').value.trim();
-      const msg = document.getElementById('message').value.trim();
-      if (user && msg) {
-        socket.emit('chat message', `${user}: ${msg}`);
-        document.getElementById('message').value = '';
-      }
-    }
+<input id="input" type="text" placeholder="Mesajınızı yazın..." />
+<button id="send">Gönder</button>
 
-    socket.on('chat message', function(msg) {
-      const div = document.createElement('div');
-      div.textContent = msg;
-      chatBox.appendChild(div);
-      chatBox.scrollTop = chatBox.scrollHeight;
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+<script>
+  // Firebase config - kendi config bilgilerinle değiştir
+  const firebaseConfig = {
+    apiKey: "AIzaSyBLF26k4moJWKh1wrsRpeZvsqgIthRRkCU",
+    authDomain: "tepecik-sohbet.firebaseapp.com",
+    databaseURL: "https://tepecik-sohbet-default-rtdb.firebaseio.com",
+    projectId: "tepecik-sohbet",
+    storageBucket: "tepecik-sohbet.firebasestorage.app",
+    messagingSenderId: "134494764080",
+    appId: "1:134494764080:web:5328dd4f5eb561587e01f5",
+    measurementId: "G-122SJN0K5D"
+  };
+
+  // Firebase başlat
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const chatDiv = document.getElementById('chat');
+  const input = document.getElementById('input');
+  const send = document.getElementById('send');
+
+  // Mesaj gönder
+  send.onclick = () => {
+    const msg = input.value.trim();
+    if (!msg) return;
+    // Mesajı veritabanına yaz
+    const newMsgRef = db.ref('messages').push();
+    newMsgRef.set({
+      text: msg,
+      timestamp: Date.now()
     });
-  </script>
+    input.value = '';
+  };
+
+  // Mesajları dinle ve göster
+  db.ref('messages').on('value', (snapshot) => {
+    chatDiv.innerHTML = ''; // Temizle
+    const messages = snapshot.val();
+    if (!messages) return;
+    Object.entries(messages).forEach(([key, msg]) => {
+      const div = document.createElement('div');
+      div.className = 'message';
+      div.textContent = msg.text;
+
+      // Silme butonu ekle
+      const delBtn = document.createElement('span');
+      delBtn.textContent = 'Sil';
+      delBtn.className = 'delete-btn';
+      delBtn.onclick = () => {
+        if (confirm('Mesajı silmek istediğine emin misin?')) {
+          db.ref('messages/' + key).remove();
+        }
+      };
+
+      div.appendChild(delBtn);
+      chatDiv.appendChild(div);
+    });
+
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+  });
+
+  // Enter tuşu ile gönderme
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') send.click();
+  });
+</script>
+
 </body>
 </html>
